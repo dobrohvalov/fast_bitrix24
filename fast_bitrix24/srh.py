@@ -4,6 +4,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 
 import aiohttp
+import loguru
 from aiohttp.client_exceptions import (
     ClientConnectionError,
     ClientPayloadError,
@@ -44,9 +45,16 @@ class ServerRequestHandler:
     последовательных запросов к серверу.
     """
 
-    def __init__(self, webhook, respect_velocity_policy, client):
+    def __init__(self, webhook, respect_velocity_policy, token_func, client):
         self.webhook = self.standardize_webhook(webhook)
         self.respect_velocity_policy = respect_velocity_policy
+
+        self.token_func = token_func
+        self.token = None  # Если None, то требуется получить новый токен
+
+        # процесс получения токена уже запущен
+        self.token_received = Event()
+        self.token_received.set()
 
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
@@ -144,10 +152,14 @@ class ServerRequestHandler:
 
         try:
             async with self.acquire():
+                url = self.webhook + method + await self.get_token_param()
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
+                # response_text = await self.session.post(url=url, json=params)
+                # loguru.logger.debug([response_text.status, response_text.text])
                 async with self.session.post(
-                    url=self.webhook + method, json=params
+                    url=url, json=params
                 ) as response:
+                    # loguru.logger.debug("Response status: %s", response.status)
                     json = await response.json(encoding="utf-8")
                     logger.debug("Response: %s", json)
                     return json
@@ -262,3 +274,25 @@ class ServerRequestHandler:
             trim_time = start_time - self.pool_size / self.requests_per_second
             while self.rr[-1] < trim_time:
                 self.rr.pop()
+
+    async def get_token_param(self):
+        '''Получить часть строки запроса с токеном авторизации.'''
+        loguru.logger.debug(self.session)
+        loguru.logger.debug(self.token_func)
+        if not self.token_func:
+            return ''
+
+        await self.token_received.wait()
+
+        if not self.token:
+            await self.get_token()
+
+        return '?auth=' + self.token
+
+    async def get_token(self, update=False):
+        '''Запросить новый токен авторизации.'''
+
+        self.token_received.clear()
+        self.token = await self.token_func(update)
+        loguru.logger.debug(self.token)
+        self.token_received.set()

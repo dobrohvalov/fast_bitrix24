@@ -30,6 +30,7 @@ class BitrixAsync:
         webhook: str,
         verbose: bool = True,
         respect_velocity_policy: bool = False,
+        token_func=None,
         client: aiohttp.ClientSession = None,
     ):
         """
@@ -44,9 +45,11 @@ class BitrixAsync:
         - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов
         объект aiohttp.ClientSession, инициализированнный и настроенный
         пользователем.
+        - `token_func = None` - функция без парамтеров, которая
+        отдает новый токен для авторизации при каждом обращении к ней
         """
 
-        self.srh = ServerRequestHandler(webhook, respect_velocity_policy, client)
+        self.srh = ServerRequestHandler(webhook, respect_velocity_policy, token_func, client)
         self.verbose = verbose
 
     @log

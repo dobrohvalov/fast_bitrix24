@@ -1,3 +1,2 @@
 """Высокоуровневый API для доступа к Битрикс24"""
-
-from fast_bitrix24.bitrix import Bitrix, BitrixAsync
+from app.fast_bitrix24.fast_bitrix24.bitrix import Bitrix, BitrixAsync

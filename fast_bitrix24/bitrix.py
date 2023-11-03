@@ -29,7 +29,7 @@ class BitrixAsync:
         self,
         webhook: str,
         verbose: bool = True,
-        respect_velocity_policy: bool = True,
+        respect_velocity_policy: bool = False,
         token_func=None,
         client: aiohttp.ClientSession = None,
     ):
